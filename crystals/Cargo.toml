@@ -1,0 +1,22 @@
+[package]
+name = "crystals"
+version = "0.1.0"
+authors = ["Nathan Martell", "Mitchell Berry"]
+description = "A post-quantum cryptographic signature verification program optimized for Solana runtime. Dilithium is based on the hardness of lattice problems over module lattices. "
+edition = "2021"
+categories = ["cryptography"]
+keywords = ["signature", "post-quantum", "verification", "solana"]
+repository = "https://github.com/Bifrost-Technologies/crystals/"
+license = "MIT"
+
+[dev-dependencies]
+pqc_core = {version = "0.3.0", features = ["load"]}
+
+[features]
+# By default this library uses mode2, also called Dilithium2 due to Solana stack size limits
+mode2 = []
+mode3 = []
+mode5 = []
+
+[lib]
+crate-type = ["cdylib", "rlib"]

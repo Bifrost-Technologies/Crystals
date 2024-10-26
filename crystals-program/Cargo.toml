@@ -1,0 +1,21 @@
+[package]
+name = "crystals-program"
+version = "0.1.0"
+description = "On-chain Crystals Kyber & Dilithium"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "crystals_program"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+default = ["custom-heap"]
+custom-heap = []
+
+[dependencies]
+anchor-lang = "0.30.1"
+crystals = { path = "../crystals", features = ["mode2"] }
+smalloc = "0.1.2"
