@@ -2,7 +2,6 @@ use crate::{
   fips202::*, packing::*, params::*, poly::*, polyvec::*, SignError,
 };
 
-// Stage 1: Initial Setup and Key Unpacking
 pub fn crypto_sign_verify_stage1(
   sig: &[u8],
   pk: &[u8],
@@ -19,7 +18,6 @@ pub fn crypto_sign_verify_stage1(
   Ok((rho, t1))
 }
 
-// Stage 2: Signature Unpacking and Initial Checks
 pub fn crypto_sign_verify_stage2(
   sig: &[u8],
 ) -> Result<(Box<[u8; SEEDBYTES]>, Box<Polyvecl>, Box<Polyveck>), SignError>
@@ -38,7 +36,7 @@ pub fn crypto_sign_verify_stage2(
   Ok((c, z, h))
 }
 
-// Stage 3: Compute CRH
+
 pub fn crypto_sign_verify_stage3(pk: &[u8], m: &[u8]) -> Box<[u8; CRHBYTES]>
 {
   let mut mu = Box::new([0u8; CRHBYTES]);
@@ -53,7 +51,7 @@ pub fn crypto_sign_verify_stage3(pk: &[u8], m: &[u8]) -> Box<[u8; CRHBYTES]>
   mu
 }
 
-pub fn crypto_sign_verify_stage4a_1(
+pub fn crypto_sign_verify_stage4(
     c: &mut [u8; SEEDBYTES]
 ) -> Box<Poly> {
     let mut cp = Box::new(Poly::default());
@@ -61,24 +59,23 @@ pub fn crypto_sign_verify_stage4a_1(
     cp
 }
 
-pub fn crypto_sign_verify_stage4a_2(
-    rho: &mut [u8; SEEDBYTES]
-) -> Box<[Polyvecl; 4]> {
-    let mut mat = Box::new([Polyvecl::default(); 4]);
-    polyvec_matrix_expand(&mut *mat, rho);
-    mat
+pub fn crypto_sign_verify_stage5(rho: &mut [u8; SEEDBYTES]) -> Box<[Polyvecl; 4]> {
+  let mut mat: Box<[Polyvecl; 4]> = Box::new([Polyvecl::default(), Polyvecl::default(), Polyvecl::default(), Polyvecl::default()]);
+  polyvec_matrix_expand(&mut *mat, rho);
+  mat
 }
 
 
-pub fn crypto_sign_verify_stage4_1(
+
+pub fn crypto_sign_verify_stage6(
     mut cp: Box<Poly>,
-    mat: Box<[Polyvecl; 4]>,
+    mut mat: Box<[Polyvecl; 4]>,
     mut z: Box<Polyvecl>,
     mut t1: Box<Polyveck>
 ) -> Result<Box<Polyveck>, SignError> {
     let mut w1 = Box::new(Polyveck::default());
     polyvecl_ntt(&mut *z);
-    polyvec_matrix_pointwise_montgomery(&mut *w1, &*mat, &*z);
+    polyvec_matrix_pointwise_montgomery(&mut *w1, &mut *mat, &*z);
     poly_ntt(&mut *cp);
     polyveck_shiftl(&mut *t1);
     polyveck_ntt(&mut *t1);
@@ -88,7 +85,7 @@ pub fn crypto_sign_verify_stage4_1(
 }
 
 
-pub fn crypto_sign_verify_stage4_2(
+pub fn crypto_sign_verify_stage7(
   mut w1: Box<Polyveck>,
   t1: Polyveck,
 ) -> Result<Box<Polyveck>, SignError>
@@ -100,7 +97,7 @@ pub fn crypto_sign_verify_stage4_2(
   Ok(w1)
 }
 
-pub fn crypto_sign_verify_stage5(
+pub fn crypto_sign_verify_stage8(
   mut buf: Box<[u8; K * POLYW1_PACKEDBYTES]>,
   mut w1: Box<Polyveck>,
   h: &Polyveck,
@@ -132,19 +129,19 @@ pub fn crypto_sign_verify(
     m: &[u8],
     pk: &[u8],
 ) -> Result<(), SignError> {
-    // Stage 1: Initial Setup and Key Unpacking
+    // Stage A: Initial Setup and Key Unpacking
     let (rho, t1) = crypto_sign_verify_stage1(sig, pk)?;
 
-    // Stage 2: Signature Unpacking and Initial Checks
+    // Stage B: Signature Unpacking and Initial Checks
     let (mut c, z, h) = crypto_sign_verify_stage2(sig)?;
 
-    // Stage 3: Compute CRH
+    // Stage C: Compute CRH
     let mu = crypto_sign_verify_stage3(pk, m);
 
-    // Stage 4: Matrix Operations
+    // Stage D: Matrix Operations
     let w1_part1 = solvematrix(rho, &mut c, z, &t1)?;
 
-    // Final Verification
+    // Stage E: Final Verification
     finalverify(w1_part1, t1, h, mu, c)
 }
 
@@ -154,9 +151,9 @@ fn solvematrix(
     z: Box<Polyvecl>,
      t1: &Box<Polyveck> // Box for heap allocation
 ) -> Result<Box<Polyveck>, SignError> {
-    let cp = crypto_sign_verify_stage4a_1(&mut **c); // Correct dereferencing
-    let mat = crypto_sign_verify_stage4a_2(&mut *rho); // Correct dereferencing
-    let w1_part1 = crypto_sign_verify_stage4_1(cp, mat, z, t1.clone())?; // Correct dereferencing for `t1`
+    let cp = crypto_sign_verify_stage4(&mut **c); // Correct dereferencing
+    let mat = crypto_sign_verify_stage5(&mut *rho); // Correct dereferencing
+    let w1_part1 = crypto_sign_verify_stage6(cp, mat, z, t1.clone())?; // Correct dereferencing for `t1`
     Ok(w1_part1)
 }
 
@@ -167,12 +164,11 @@ pub fn finalverify(
     mu: Box<[u8; 64]>,
     c: Box<[u8; 32]>
 ) -> Result<(), SignError> {
-    // Sub-Stage 4_2
-    let w1 = crypto_sign_verify_stage4_2(w1_part1, *t1)?; // Correct dereferencing for `t1`
+    
+    let w1 = crypto_sign_verify_stage7(w1_part1, *t1)?; // Correct dereferencing for `t1`
 
-    // Stage 5
     let buf = Box::new([0u8; K * POLYW1_PACKEDBYTES]);
     let mut c2 = Box::new([0u8; SEEDBYTES]);
-    crypto_sign_verify_stage5(buf, w1, &h, mu, &c, &mut *c2)?;
+    crypto_sign_verify_stage8(buf, w1, &h, mu, &c, &mut *c2)?;
     Ok(())
 }
