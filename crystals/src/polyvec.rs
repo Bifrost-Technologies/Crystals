@@ -56,11 +56,56 @@ pub fn polyvec_matrix_pointwise_montgomery(t: &mut Polyveck, mat: &[Polyvecl], v
   }
 }
 
+//*********** Vectors of polynomials of length L ****************************
+#[cfg(feature = "offchain")]
+pub fn polyvecl_uniform_eta(v: &mut Polyvecl, seed: &[u8], mut nonce: u16) {
+  for i in 0..L {
+    poly_uniform_eta(&mut v.vec[i], seed, nonce);
+    nonce += 1;
+  }
+}
+
+pub fn polyvecl_uniform_gamma1(v: &mut Polyvecl, seed: &[u8], nonce: u16) {
+  for i in 0..L {
+    poly_uniform_gamma1(&mut v.vec[i], seed, L_U16 * nonce + i as u16);
+  }
+}
+pub fn polyvecl_reduce(v: &mut Polyvecl) {
+  for i in 0..L {
+    poly_reduce(&mut v.vec[i]);
+  }
+}
+
+/// Add vectors of polynomials of length L.
+/// No modular reduction is performed.
+pub fn polyvecl_add(w: &mut Polyvecl, v: &Polyvecl) {
+  for i in 0..L {
+    poly_add(&mut w.vec[i], &v.vec[i]);
+  }
+}
+
+
 /// Forward NTT of all polynomials in vector of length L. Output
 /// coefficients can be up to 16*Q larger than input coefficients.*
 pub fn polyvecl_ntt(v: &mut Polyvecl) {
   for i in 0..L {
       poly_ntt(&mut v.vec[i]);
+  }
+}
+
+pub fn polyvecl_invntt_tomont(v: &mut Polyvecl) {
+  for i in 0..L {
+    poly_invntt_tomont(&mut v.vec[i]);
+  }
+}
+
+pub fn polyvecl_pointwise_poly_montgomery(
+  r: &mut Polyvecl,
+  a: &Poly,
+  v: &Polyvecl,
+) {
+  for i in 0..L {
+    poly_pointwise_montgomery(&mut r.vec[i], a, &v.vec[i]);
   }
 }
 
@@ -94,7 +139,13 @@ pub fn polyvecl_chknorm(v: &Polyvecl, bound: i32) -> u8 {
 
 
 //*********** Vectors of polynomials of length K ****************************
-
+#[cfg(feature = "offchain")]
+pub fn polyveck_uniform_eta(v: &mut Polyveck, seed: &[u8], mut nonce: u16) {
+  for i in 0..K {
+    poly_uniform_eta(&mut v.vec[i], seed, nonce);
+    nonce += 1
+  }
+}
 
 /// Reduce coefficients of polynomials in vector of length K
 /// to representatives in [0,2*Q].
@@ -109,6 +160,14 @@ pub fn polyveck_reduce(v: &mut Polyveck) {
 pub fn polyveck_caddq(v: &mut Polyveck) {
   for i in 0..K {
       poly_caddq(&mut v.vec[i]);
+  }
+}
+
+/// Add vectors of polynomials of length K.
+/// No modular reduction is performed.
+pub fn polyveck_add(w: &mut Polyveck, v: &Polyveck) {
+  for i in 0..K {
+    poly_add(&mut w.vec[i], &v.vec[i]);
   }
 }
 
@@ -152,6 +211,59 @@ pub fn polyveck_pointwise_poly_montgomery(r: &mut Polyveck, a: &Poly, v: &Polyve
       poly_pointwise_montgomery(&mut r.vec[i], a, &v.vec[i]);
   }
 }
+
+
+/// Check infinity norm of polynomials in vector of length K.
+/// Assumes input coefficients to be standard representatives.
+//
+/// Returns 0 if norm of all polynomials are strictly smaller than B and 1
+/// otherwise.
+pub fn polyveck_chknorm(v: &Polyveck, bound: i32) -> u8 {
+  for i in 0..K {
+    if poly_chknorm(&v.vec[i], bound) > 0 {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+#[cfg(feature = "offchain")]
+/// For all coefficients a of polynomials in vector of length K,
+/// compute a0, a1 such that a mod Q = a1*2^D + a0
+/// with -2^{D-1} < a0 <= 2^{D-1}. Assumes coefficients to be
+/// standard representatives.
+pub fn polyveck_power2round(v1: &mut Polyveck, v0: &mut Polyveck) {
+  for i in 0..K {
+    poly_power2round(&mut v1.vec[i], &mut v0.vec[i]);
+  }
+}
+
+/// For all coefficients a of polynomials in vector of length K,
+/// compute high and low bits a0, a1 such a mod Q = a1*ALPHA + a0
+/// with -ALPHA/2 < a0 <= ALPHA/2 except a1 = (Q-1)/ALPHA where we
+/// set a1 = 0 and -ALPHA/2 <= a0 = a mod Q - Q < 0.
+/// Assumes coefficients to be standard representatives.
+pub fn polyveck_decompose(v1: &mut Polyveck, v0: &mut Polyveck) {
+  for i in 0..K {
+    poly_decompose(&mut v1.vec[i], &mut v0.vec[i]);
+  }
+}
+
+/// Compute hint vector.
+///
+/// Returns number of 1 bits.
+pub fn polyveck_make_hint(
+  h: &mut Polyveck,
+  v0: &Polyveck,
+  v1: &Polyveck,
+) -> i32 {
+  let mut s = 0i32;
+  for i in 0..K {
+    s += poly_make_hint(&mut h.vec[i], &v0.vec[i], &v1.vec[i]);
+  }
+  s
+}
+
 
 /// Use hint vector to correct the high bits of input vector.
 pub fn polyveck_use_hint(w: &mut Polyveck, h: &Polyveck) {

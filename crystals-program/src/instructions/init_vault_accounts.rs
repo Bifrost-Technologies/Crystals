@@ -3,9 +3,12 @@ use anchor_lang::prelude::*;
 use crystals::*;
 extern crate crystals;
 
-pub fn init_vault_accounts(_ctx: Context<InitVaultAccounts>, args: VerifyArgs) -> Result<()> {
+pub fn init_vault_accounts(ctx: Context<InitVaultAccounts>, args: VerifyArgs) -> Result<()> {
     let sig_verify = verify(&args.sig, &args.msg, &args.public_key);
     assert!(sig_verify.is_ok());
+    if let Err(e) = ctx.accounts.vault_account.init(ctx.accounts.owner.key(), args.public_key){
+        return Err(e.into());
+    }
     Ok(())
 }
 
@@ -28,7 +31,7 @@ pub struct InitVaultAccounts<'info> {
 }
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct VerifyArgs {
-    pub sig: Box<[u8]>,
+    pub sig: Box<[u8; SIGNBYTES]>,
     pub msg: Box<[u8]>,
-    pub public_key: Box<[u8]>,
+    pub public_key: Box<[u8; PUBLICKEYBYTES]>,
 }

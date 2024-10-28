@@ -9,14 +9,18 @@ keywords = ["signature", "post-quantum", "verification", "solana"]
 repository = "https://github.com/Bifrost-Technologies/crystals/"
 license = "MIT"
 
+[dependencies]
+rand = { version = "0.8.5", optional = true}
+
 [dev-dependencies]
 pqc_core = {version = "0.3.0", features = ["load"]}
 
 [features]
-# By default this library uses mode2, also called Dilithium2 due to Solana stack size limits
+# By default this library uses mode3, also called Dilithium3 due to Solana stack size limits
 mode2 = []
 mode3 = []
 mode5 = []
+offchain = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -1,5 +1,17 @@
 use crate::params::*;
 
+#[cfg(feature = "offchain")]
+/// For finite field element a, compute a0, a1 such that
+/// a mod^+ Q = a1*2^D + a0 with -2^{D-1} < a0 <= 2^{D-1}.
+/// Assumes a to be standard representative.
+///
+/// Returns a1.
+pub fn power2round(a: i32, a0: &mut i32) -> i32 {
+  let a1 = (a + (1 << (D - 1)) - 1) >> D;
+  *a0 = a - (a1 << D);
+  return a1;
+}
+
 /// For finite field element a, compute high and low bits a0, a1 such
 /// that a mod^+ Q = a1*ALPHA + a0 with -ALPHA/2 < a0 <= ALPHA/2 except
 /// if a1 = (Q-1)/ALPHA where we set a1 = 0 and
@@ -19,6 +31,17 @@ pub fn decompose(a0: &mut i32, a: i32) -> i32 {
   *a0 = a - a1 * 2 * GAMMA2_I32;
   *a0 -= (((Q_I32 - 1) / 2 - *a0) >> 31) & Q_I32;
   a1
+}
+
+/// Compute hint bit indicating whether the low bits of the
+/// input element overflow into the high bits.
+///
+/// Returns 1 if overflow.
+pub fn make_hint(a0: i32, a1: i32) -> u8 {
+  if a0 > GAMMA2_I32 || a0 < -GAMMA2_I32 || (a0 == -GAMMA2_I32 && a1 != 0) {
+    return 1;
+  }
+  return 0;
 }
 
 /// Correct high bits according to hint.
