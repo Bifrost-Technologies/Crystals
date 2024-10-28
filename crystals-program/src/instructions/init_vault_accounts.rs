@@ -26,10 +26,9 @@ pub struct InitVaultAccounts<'info> {
    
     pub system_program: Program<'info, System>,
 }
-
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct VerifyArgs {
-    pub sig: [u8; SIGNBYTES],
-    pub msg: [u8; 32],
-    pub public_key: [u8; PUBLICKEYBYTES],
+    pub sig: Box<[u8]>,
+    pub msg: Box<[u8]>,
+    pub public_key: Box<[u8]>,
 }

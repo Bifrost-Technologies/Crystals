@@ -17,5 +17,5 @@ custom-heap = []
 
 [dependencies]
 anchor-lang = "0.30.1"
-crystals = { path = "../crystals", features = ["mode2"] }
+crystals = { path = "../crystals", features = ["mode3"] }
 smalloc = "0.1.2"
